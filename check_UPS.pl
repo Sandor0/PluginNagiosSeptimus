@@ -43,7 +43,7 @@ $plugin_check_ups->add_arg(
 $plugin_check_ups->getopts();
 my $options_check_ups = $plugin_check_ups->opts();
 $ip_check_ups = $options_check_ups->get('host');
-$community_check_ups = $options_check_ups->get('community'); # comment
+$community_check_ups = $options_check_ups->get('community');
 
 $result_check_ups = `snmpget -Ov -c $community_check_ups -v 1 $ip_check_ups .1.3.6.1.4.1.705.1.7.3.0`;
 $result_check_ups = substr($result_check_ups, 9);
