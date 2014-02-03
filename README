@@ -1,6 +1,6 @@
 Plugins pour nagios.
 
-<h1>check_traffic.pl</h1>
+# check_traffic.pl
 Permet de tester le traffic du port d'un switch, entrant et sortant.
 Génére les données de performance permettant de tracer un graphique.
 
