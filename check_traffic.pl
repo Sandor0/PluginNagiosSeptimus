@@ -195,8 +195,8 @@ print "/s - $interfaceName in/out: " . getFormattedData($totalBytesIN) . "/" . g
 
 print "|";
 
-print "bandwidthIN=$bandwidthIN" . "octets/s;$warningThresold;$criticalThresold; ";
-print "bandwidthOUT=$bandwidthOUT" . "octets/s;$warningThresold;$criticalThresold;\n";
+print "bandwidthIN=$bandwidthIN" . "octets/s; ";
+print "bandwidthOUT=$bandwidthOUT" . "octets/s;\n";
 
 
 if($status eq "OK")
