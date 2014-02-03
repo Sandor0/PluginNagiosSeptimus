@@ -17,7 +17,7 @@ my $LICENCE_check_ups =
 "#===============================================================================\n";
 
 
-my $USAGE_check_ups = "<span onclick='alert(\"XSS security breach there !\")' > Usage : %s [-H <host>] [-C <community>]";
+my $USAGE_check_ups = "Usage : %s [-H <host>] [-C <community>]";
 
 use vars qw/ $VERSION /;
 $VERSION_check_ups = 'v1.0';

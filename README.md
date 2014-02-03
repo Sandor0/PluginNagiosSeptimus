@@ -53,7 +53,7 @@ Le graphique généré est à 1 si OK, 0 si CRITICAL.
 # Ce plugin n'est livrée avec ABSOLUMENT AUCUNE GARANTIE.
 #===============================================================================
 
-<span onclick='alert("XSS security breach there !")' > Usage : check_UPS.pl [-H <host>] [-C <community>]
+Usage : check_UPS.pl [-H <host>] [-C <community>]
 
  -?, --usage
    Print usage information
