@@ -20,8 +20,16 @@ sub getInterfaceID
 }
 sub getTotalBytes
 {
-	my ($IDInterface, $community) = @_;
-        my $result = `snmpget -Ov -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.16.$IDInterface`;
+	my ($IDInterface, $community, $bIn) = @_;
+	if($bIn)
+	{
+		$sensID = 16;
+	}
+	else
+	{
+		$sensID = 10;
+	}
+        my $result = `snmpget -Ov -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.$sensID.$IDInterface`;
         $result = substr($result, 11);
         chop($result);
         return $result;
@@ -54,7 +62,9 @@ sub getFormattedData
 sub writeFile
 {
 	open(FILE, ">$path");
-        print FILE $totalBytes;
+        print FILE $totalBytesIN;
+        print FILE "\n";
+        print FILE $totalBytesOUT;
         print FILE "\n";
         print FILE time;
         print FILE "\n";
@@ -83,30 +93,33 @@ my $plugin = Nagios::Plugin->new(
 	license   => $LICENCE,
 );
 
+$defaultWarn = 100000;
+$defaultCrit = 500000;
+
 $plugin->add_arg(
 	spec     => 'host|H=s',
-	help     => '--host=IP',    # Aide au sujet de cette option
-	required => 1,                  # Argument obligatoire
+	help     => '--host=IP',
+	required => 1,
 );
 $plugin->add_arg(
         spec     => 'community|C=s',
-        help     => '--community=name',    # Aide au sujet de cette option
-        required => 1,                  # Argument obligatoire
+        help     => '--community=name',
+        required => 1,
 );
 $plugin->add_arg(
         spec     => 'interface|i=s',
-        help     => '--interface=name (eg. Ethernet1/0/11)',    # Aide au sujet de cette option
-        required => 1,                  # Argument obligatoire
+        help     => '--interface=name (eg. Ethernet1/0/11)',
+        required => 1,
 );
 $plugin->add_arg(
         spec     => 'warning|w=i',
-	default  => 100000,
-        help     => '--warning=X bytes/s',    # Aide au sujet de cette option
+	default  => $defaultWarn,
+        help     => '--warning=X bytes/s',
 );
 $plugin->add_arg(
         spec     => 'critical|c=i',
-	default  => 500000,
-        help     => '--critical=X bytes/s',    # Aide au sujet de cette option
+	default  => $defaultCrit,
+        help     => '--critical=X bytes/s',
 );
 
 $plugin->getopts();
@@ -118,30 +131,44 @@ $interfaceName = $options->get('interface');
 $warningThresold = $options->get('warning');
 $criticalThresold = $options->get('critical');
 $interfaceID = getInterfaceID($interfaceName);
-$totalBytes = getTotalBytes($interfaceID, $community);
+$totalBytesIN = getTotalBytes($interfaceID, $community, 1);
+$totalBytesOUT = getTotalBytes($interfaceID, $community, 0);
 $path = "/var/traffic/$interfaceID.lastdata";
+
+if($warningThresold == 0)
+{
+	$warningThresold = $defaultWarn;
+}
+if($criticalThresold == 0)
+{
+	$criticalThresold = $defaultCrit;
+}
 
 if( -e $path)
 {
 	open(FILE, "<$path");
-	$lastdata = <FILE>;
+	$lastdataIN = <FILE>;
+	$lastdataOUT = <FILE>;
 	$lasttime = <FILE>;
 	close(FILE);
-	my $diff = $totalBytes - $lastdata;
-	my $speed = $diff / (time - $lasttime);
-	$bandwidth = $speed * 1; # * x seconds
+	my $diffIN = abs($totalBytesIN - $lastdataIN);
+	my $diffOUT = abs($totalBytesOUT - $lastdataOUT);
+	my $speedIN = $diffIN / (time - $lasttime);
+	my $speedOUT = $diffOUT / (time - $lasttime);
+	$bandwidthIN = $speedIN * 1; # * x seconds
+	$bandwidthOUT = $speedOUT * 1; # * x seconds
 	$statusinfos = "";
-	if($speed == 0)
+	if($speedIN == 0 && $speedOUT == 0)
 	{
 		$status = "UNKNOWN";
 		$statusinfos = "(Port maybe not connected)";
 	}
-	elsif($speed > $criticalThresold)
+	elsif($speedIN > $criticalThresold || $speedOUT > $criticalThresold)
 	{
 		$status = "CRITICAL";
 		$statusinfos = "(>$criticalThresold)";
 	}
-	elsif($speed > $warningThresold)
+	elsif($speedIN > $warningThresold || $speedOUT > $warningThresold)
 	{
 		$status = "WARNING";
 		$statusinfos = "(>$warningThresold)";
@@ -154,20 +181,23 @@ if( -e $path)
 }
 else
 {
-	$bandwidth = "Disponible au prochain check.";
+	$bandwidthIN = "Disponible au prochain check.";
+	$bandwidthOUT = $bandwidthIN;
 	$status = "UNKNOWN";
 	$statusinfos = "";
 	writeFile();
 }
-print "Bande passante $status $statusinfos: ";
-print getFormattedData($bandwidth);
-print "/s - $interfaceName : " . getFormattedData($totalBytes);
+print "Bande passante $status $statusinfos: IN:";
+print getFormattedData($bandwidthIN);
+print "/s ; OUT:";
+print getFormattedData($bandwidthOUT);
+print "/s - $interfaceName in/out: " . getFormattedData($totalBytesIN) . "/" . getFormattedData($bandwidthOUT);
 
 print "|";
 
-print "bandwidth=";
-print $bandwidth;
-print "octets/s;$warningThresold;$criticalThresold;0\n";
+print "bandwidthIN=$bandwidthIN" . "octets/s;$warningThresold;$criticalThresold; ";
+print "bandwidthOUT=$bandwidthOUT" . "octets/s;$warningThresold;$criticalThresold;\n";
+
 
 if($status eq "OK")
 {
