@@ -19,7 +19,7 @@ sub getInterfacesName
 sub getInterfaceID
 {
 	my ($name) = @_;
-	$commandId = `snmpwalk -Os -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.2 | grep "ifDescr.*STRING: $name"`;
+	$commandId = `snmpwalk -Os -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.2 | grep "ifDescr.*STRING: $name\$"`;
 	chop($commandId);
 	if($commandId eq "")
 	{
@@ -27,7 +27,8 @@ sub getInterfaceID
 	}
 	$commandId = substr($commandId, 8);
 	$length = index($commandId, "=") - 1;
-	return substr($commandId, 0, $length);
+	$return = substr($commandId, 0, $length);
+	return $return;
 }
 sub getTotalBytes
 {
