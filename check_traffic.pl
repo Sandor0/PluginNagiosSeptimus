@@ -19,7 +19,7 @@ sub getInterfacesName
 sub getInterfaceID
 {
 	my ($name) = @_;
-	$commandId = `snmpwalk -Os -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.2 | grep $name`;
+	$commandId = `snmpwalk -Os -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.2 | grep "ifDescr.*STRING: $name"`;
 	chop($commandId);
 	if($commandId eq "")
 	{
@@ -48,6 +48,10 @@ sub getTotalBytes
 sub getFormattedData
 {
         my ($speed) = @_;
+	if(!($speed =~ /^\d+\.*\d+$/))
+	{
+		return $speed;
+	}
         if($speed < 750)
         {
 		$speed = nearest(.001, $speed);
@@ -157,7 +161,16 @@ if($viewInterface eq 'all' || $interfaceID eq "error")
 
 $totalBytesIN = getTotalBytes($interfaceID, $community, 1);
 $totalBytesOUT = getTotalBytes($interfaceID, $community, 0);
-$path = "/var/traffic/$interfaceID.lastdata";
+$dir = "./traffic/";
+$filename = "$ip.$interfaceID.$interfaceName.lastdata";
+$filename =~ s/\//-/g;
+$path = $dir . $filename;
+
+# print $path;
+if(!(-d $dir))
+{
+	`mkdir ./traffic`;
+}
 
 
 if($warningThresold == 0)
@@ -169,7 +182,8 @@ if($criticalThresold == 0)
 	$criticalThresold = $defaultCrit;
 }
 
-if( -e $path)
+$toNextCheck = 0;
+if(-e $path)
 {
 	open(FILE, "<$path");
 	$lastdataIN = <FILE>;
@@ -207,6 +221,7 @@ if( -e $path)
 else
 {
 	$bandwidthIN = "Disponible au prochain check.";
+	$toNextCheck = 1;
 	$bandwidthOUT = $bandwidthIN;
 	$status = "UNKNOWN";
 	$statusinfos = "";
@@ -218,11 +233,13 @@ print "/s ; OUT:";
 print getFormattedData($bandwidthOUT);
 print "/s - $interfaceName in/out: " . getFormattedData($totalBytesIN) . "/" . getFormattedData($bandwidthOUT);
 
-print "|";
+if($toNextCheck == 0)
+{
+	print "|";
 
-print "bandwidthIN=$bandwidthIN" . "octets/s; ";
-print "bandwidthOUT=$bandwidthOUT" . "octets/s;\n";
-
+	print "bandwidthIN=$bandwidthIN" . "octets/s; ";
+	print "bandwidthOUT=$bandwidthOUT" . "octets/s;\n";
+}
 
 if($status eq "OK")
 {
