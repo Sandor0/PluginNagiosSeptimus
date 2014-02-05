@@ -20,11 +20,11 @@ my $LICENCE_check_ups =
 my $USAGE_check_ups = "Usage : %s [-H <host>] [-C <community>]";
 
 use vars qw/ $VERSION /;
-$VERSION_check_ups = 'v1.0';
+$VERSION_check_ups = 'v1.1';
 
 my $plugin_check_ups = Nagios::Plugin->new(
 	shortname => "check if UPS is on battery",
-	usage     => "$USAGE_check_ups",
+	usage     => $USAGE_check_ups,
 	version   => $VERSION_check_ups,
 	license   => $LICENCE_check_ups,
 );
@@ -49,11 +49,11 @@ $result_check_ups = `snmpget -Ov -c $community_check_ups -v 1 $ip_check_ups .1.3
 $result_check_ups = substr($result_check_ups, 9);
 if($result_check_ups == 2)
 {
-	print "UPS OK.|State=1;\n";
+	print "UPS OK.|on_state=1; off_state=0;\n";
 	exit $plugin_check_ups->nagios_exit(OK, "");
 }
 elsif($result_check_ups == 1)
 {
-	print "UPS CRITICAL : On battery.|State=0;\n";
+	print "UPS CRITICAL : On battery.|off_state=1; on_state=0;\n";
 	exit $plugin_check_ups->nagios_exit(CRITICAL, "");
 }
