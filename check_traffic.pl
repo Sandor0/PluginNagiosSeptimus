@@ -9,11 +9,22 @@ use Time::HiRes;
 use Math::Round;
 use Nagios::Plugin;
 
+sub getInterfacesName
+{
+	$command = `snmpwalk -Os -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.2`;
+	#TODO split for display only interfaces name rather of the full OID
+	return $command;
+}
+
 sub getInterfaceID
 {
 	my ($name) = @_;
-	$commandId = `snmpwalk -Os -c cove -v 1 $ip .1.3.6.1.2.1.2.2.1.2 | grep $name`;
+	$commandId = `snmpwalk -Os -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.2 | grep $name`;
 	chop($commandId);
+	if($commandId eq "")
+	{
+		return "error";
+	}
 	$commandId = substr($commandId, 8);
 	$length = index($commandId, "=") - 1;
 	return substr($commandId, 0, $length);
@@ -81,7 +92,7 @@ my $LICENCE =
 "#===============================================================================\n";
 
 
-my $USAGE = "Usage : %s [-H <host>] [-C <community>] [-i <interface name>] [-w <warning>] [-c <critical>]";
+my $USAGE = "Usage : %s [-H <host>] [-C <community>] [-i <interface name>] [-w <warning>] [-c <critical>] [-F all]";
 
 use vars qw/ $VERSION /;
 $VERSION = 'v1.0';
@@ -109,7 +120,7 @@ $plugin->add_arg(
 $plugin->add_arg(
         spec     => 'interface|i=s',
         help     => '--interface=name (eg. Ethernet1/0/11)',
-        required => 1,
+	default	 => 'default',
 );
 $plugin->add_arg(
         spec     => 'warning|w=i',
@@ -121,6 +132,11 @@ $plugin->add_arg(
 	default  => $defaultCrit,
         help     => '--critical=X bytes/s',
 );
+$plugin->add_arg(
+	spec	 => 'view-interface|F=s',
+	help	 => '--view-interface=all',
+	default	 => 'no',
+);
 
 $plugin->getopts();
 my $options = $plugin->opts();
@@ -130,10 +146,19 @@ $community = $options->get('community');
 $interfaceName = $options->get('interface');
 $warningThresold = $options->get('warning');
 $criticalThresold = $options->get('critical');
+$viewInterface = $options->get('view-interface');
 $interfaceID = getInterfaceID($interfaceName);
+
+if($viewInterface eq 'all' || $interfaceID eq "error")
+{
+	print getInterfacesName();
+	exit $plugin->nagios_exit(UNKNOWN, "Lists interfaces.");
+}
+
 $totalBytesIN = getTotalBytes($interfaceID, $community, 1);
 $totalBytesOUT = getTotalBytes($interfaceID, $community, 0);
 $path = "/var/traffic/$interfaceID.lastdata";
+
 
 if($warningThresold == 0)
 {
