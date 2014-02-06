@@ -46,31 +46,32 @@ sub getTotalBytes
         chop($result);
         return $result;
 }
+
 sub getFormattedData
 {
         my ($speed) = @_;
-	if(!($speed =~ /^\d+\.*\d+$/))
-	{
-		return $speed;
-	}
+        if(!($speed =~ /^\d+\.*\d*$/))
+        {
+                return $speed;
+        }
         if($speed < 750)
         {
-		$speed = nearest(.001, $speed);
+                $speed = nearest(.001, $speed);
                 return "$speed octets";
         }
-        if($speed >= 750 && $speed < 75000)
+        if($speed >= 750 && $speed < 750000)
         {
                 $speed = nearest(.001, $speed / 1000);
                 return "$speed Ko";
         }
-        if($speed >= 75000 && $speed < 75000000)
+        if($speed >= 750000 && $speed < 750000000)
         {
-                $speed = nearest(.001, $speed / 100000);
+                $speed = nearest(.001, $speed / 1000000);
                 return "$speed Mo";
         }
-        if($speed >= 75000000)
+        if($speed >= 750000000)
         {
-                $speed = nearest(.001, $speed / 100000000);
+                $speed = nearest(.001, $speed / 1000000000);
                 return "$speed Go";
         }
 }
