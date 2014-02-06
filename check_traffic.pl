@@ -163,7 +163,7 @@ if($viewInterface eq 'all' || $interfaceID eq "error")
 
 $totalBytesIN = getTotalBytes($interfaceID, $community, 1);
 $totalBytesOUT = getTotalBytes($interfaceID, $community, 0);
-$dir = "./traffic/";
+$dir = "/var/log/centreon/traffic/";
 $filename = "$ip.$interfaceID.$interfaceName.lastdata";
 $filename =~ s/\//-/g;
 $path = $dir . $filename;
@@ -171,7 +171,7 @@ $path = $dir . $filename;
 # print $path;
 if(!(-d $dir))
 {
-	`mkdir ./traffic`;
+	`mkdir $dir`;
 }
 
 
