@@ -170,14 +170,13 @@ $community = $options->get('community');
 $warningThresold = $options->get('warning');
 $criticalThresold = $options->get('critical');
 $viewInterface = $options->get('view-interface');
-@interfacesNames = split(';', $options->get('interfaces'));
+@interfacesNames = split(',', $options->get('interfaces'));
 
 #foreach (@interfacesNames)
 #{
 #	print "$_\n";
 #}
 $badName = 0;
-
 if($interfacesNames[0] ne "default")
 {
 	@interfacesIDs = getInterfacesIDs(@interfacesNames);
@@ -185,11 +184,6 @@ if($interfacesNames[0] ne "default")
 else
 {
 	$badName = 1;	
-}
-
-foreach (@interfacesIDs)
-{
-	print "$_\n";
 }
 
 
@@ -315,6 +309,14 @@ else
 	print "Total entrant/sortant : " . getFormattedData($totalIN) . "/" . getFormattedData($totalOUT) . " ; ";
 	print "Moyenne entrant/sortant : " . getFormattedData($averageIN) . "/" . getFormattedData($averageOUT) . ".";
 	print "|";
+	print "maxIN=$maxIN" . "octets/s; ";
+	print "maxOUT=$maxOUT" . "octets/s; ";
+	print "totalIN=$totalIN" . "octets/s; ";
+	print "totalOUT=$totalOUT" . "octets/s; ";
+	print "averageIN=$averageIN" . "octets/s; ";
+	print "averageOUT=$averageOUT" . "octets/s; ";
+	print "\n";
+	exit $plugin->nagios_exit(OK, "Bandwidth OK" );
 }
 
 if($status eq "OK")
