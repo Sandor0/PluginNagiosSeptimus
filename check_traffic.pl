@@ -311,8 +311,6 @@ else
 	print "|";
 	print "maxIN=$maxIN" . "octets/s; ";
 	print "maxOUT=$maxOUT" . "octets/s; ";
-	print "totalIN=$totalIN" . "octets/s; ";
-	print "totalOUT=$totalOUT" . "octets/s; ";
 	print "averageIN=$averageIN" . "octets/s; ";
 	print "averageOUT=$averageOUT" . "octets/s; ";
 	print "\n";
