@@ -7,6 +7,23 @@
 
 use Math::Round;
 use Nagios::Plugin;
+use Net::SNMP;
+
+sub createSNMPSession
+{
+	($SNMPSession, $error) = Net::SNMP->session(
+		-hostname 	=> $ip,
+		-community 	=> $community,
+		-version	=> 1,
+		-timeout	=> 5
+		);
+	if(!defined($SNMPSession))
+	{
+		print $error;
+		exit -1;
+	}
+}
+	
 
 sub getInterfacesName
 {
@@ -40,50 +57,61 @@ sub getTotalBytes
 	{
 		$sensID = 10;
 	}
-        my $result = `snmpget -Ov -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.$sensID.$IDInterface`;
-        $result = substr($result, 11);
-        chop($result);
-        return $result;
+#        my $result = `snmpget -Ov -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.$sensID.$IDInterface`;
+	%hash = $SNMPSession->get_request(".1.3.6.1.2.1.2.2.1.$sensID.$IDInterface");
+
+	$nb = keys(%hash);
+	@cles = keys(%hash);
+	print "Nombre d'elements : $nb\n";
+	print "Cles : @cles\n\n";
+	foreach $i (@cles) 
+	{
+		print "hash($i) = $hash{$i}\n";
+	}
+	exit -1;
+	$result = substr($result, 11);
+	chop($result);
+	return $result;
 }
 
 sub getFormattedData
 {
-        my ($speed) = @_;
-        if(!($speed =~ /^\d+\.*\d*$/))
-        {
-                return $speed;
-        }
-        if($speed < 750)
-        {
-                $speed = nearest(.001, $speed);
-                return "$speed octets";
-        }
-        if($speed >= 750 && $speed < 750000)
-        {
-                $speed = nearest(.001, $speed / 1000);
-                return "$speed Ko";
-        }
-        if($speed >= 750000 && $speed < 750000000)
-        {
-                $speed = nearest(.001, $speed / 1000000);
-                return "$speed Mo";
-        }
-        if($speed >= 750000000)
-        {
-                $speed = nearest(.001, $speed / 1000000000);
-                return "$speed Go";
-        }
+	my ($speed) = @_;
+	if(!($speed =~ /^\d+\.*\d*$/))
+	{
+		return $speed;
+	}
+	if($speed < 750)
+	{
+		$speed = nearest(.001, $speed);
+		return "$speed octets";
+	}
+	if($speed >= 750 && $speed < 750000)
+	{
+		$speed = nearest(.001, $speed / 1000);
+		return "$speed Ko";
+	}
+	if($speed >= 750000 && $speed < 750000000)
+	{
+		$speed = nearest(.001, $speed / 1000000);
+		return "$speed Mo";
+	}
+	if($speed >= 750000000)
+	{
+		$speed = nearest(.001, $speed / 1000000000);
+		return "$speed Go";
+	}
 }
 
 sub writeFile
 {
 	open(FILE, ">$path");
-        print FILE $totalBytesIN;
-        print FILE "\n";
-        print FILE $totalBytesOUT;
-        print FILE "\n";
-        print FILE time;
-        print FILE "\n";
+	print FILE $totalBytesIN;
+	print FILE "\n";
+	print FILE $totalBytesOUT;
+	print FILE "\n";
+	print FILE time;
+	print FILE "\n";
 	close(FILE);
 }
 
@@ -103,51 +131,52 @@ use vars qw/ $VERSION /;
 $VERSION = 'v1.0';
 
 my $plugin = Nagios::Plugin->new(
-	shortname => "check switch's bandwidth",
-	usage     => "$USAGE",
-	version   => $VERSION,
-	license   => $LICENCE,
-);
+		shortname => "check switch's bandwidth",
+		usage     => "$USAGE",
+		version   => $VERSION,
+		license   => $LICENCE,
+		);
 
 $defaultWarn = 100000;
 $defaultCrit = 500000;
 
 $plugin->add_arg(
-	spec     => 'host|H=s',
-	help     => '--host=IP',
-	required => 1,
-);
+		spec     => 'host|H=s',
+		help     => '--host=IP',
+		required => 1,
+		);
 $plugin->add_arg(
-        spec     => 'community|C=s',
-        help     => '--community=name',
-        required => 1,
-);
+		spec     => 'community|C=s',
+		help     => '--community=name',
+		required => 1,
+		);
 $plugin->add_arg(
-        spec     => 'interface|i=s',
-        help     => '--interface=name (eg. Ethernet1/0/11)',
-	default	 => 'default',
-);
+		spec     => 'interface|i=s',
+		help     => '--interface=name (eg. Ethernet1/0/11)',
+		default	 => 'default',
+		);
 $plugin->add_arg(
-        spec     => 'warning|w=i',
-	default  => $defaultWarn,
-        help     => '--warning=X bytes/s',
-);
+		spec     => 'warning|w=i',
+		default  => $defaultWarn,
+		help     => '--warning=X bytes/s',
+		);
 $plugin->add_arg(
-        spec     => 'critical|c=i',
-	default  => $defaultCrit,
-        help     => '--critical=X bytes/s',
-);
+		spec     => 'critical|c=i',
+		default  => $defaultCrit,
+		help     => '--critical=X bytes/s',
+		);
 $plugin->add_arg(
-	spec	 => 'view-interface|F=s',
-	help	 => '--view-interface=all',
-	default	 => 'no',
-);
+		spec	 => 'view-interface|F=s',
+		help	 => '--view-interface=all',
+		default	 => 'no',
+		);
 
 $plugin->getopts();
 my $options = $plugin->opts();
 
 $ip = $options->get('host');
 $community = $options->get('community');
+createSNMPSession();
 $interfaceName = $options->get('interface');
 $warningThresold = $options->get('warning');
 $criticalThresold = $options->get('critical');
@@ -196,8 +225,8 @@ if(-e $path)
 	my $speedIN = $diffIN / (time - $lasttime);
 	my $speedOUT = $diffOUT / (time - $lasttime);
 	$bandwidthIN = $speedIN * 1; # * x seconds
-	$bandwidthOUT = $speedOUT * 1; # * x seconds
-	$statusinfos = "";
+		$bandwidthOUT = $speedOUT * 1; # * x seconds
+		$statusinfos = "";
 	if($speedIN == 0 && $speedOUT == 0)
 	{
 		$status = "UNKNOWN";
