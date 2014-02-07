@@ -5,7 +5,6 @@
 # But    : Verification de la bande passante du port d'un switch
 #===============================================================================
 
-use Time::HiRes;
 use Math::Round;
 use Nagios::Plugin;
 
