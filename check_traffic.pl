@@ -12,24 +12,53 @@ use Net::SNMP;
 
 sub getInterfacesName
 {
-	$command = `snmpwalk -Os -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.2`;
-	#TODO split for display only interfaces name rather of the full OID
-	return $command;
+	$oid = '.1.3.6.1.2.1.2.2.1.2';
+	$idIf = 0;
+	$prevOid = -1;
+	$return = '';
+	while($idIf > $prevOid)
+	{
+		$SNMPSession->get_next_request($oid);
+		$oid = ($SNMPSession->var_bind_names())[0];
+		$ifName = $SNMPSession->get_request($oid)->{$oid};
+		$prevOid = $idIf;
+		$idIf = substr($oid, rindex($oid, '.') + 1);
+		if($idIf < $prevOid)
+		{
+			last;
+		}
+		$return .= $ifName;
+		$return .= "\n";
+	}
+
+	return $return;
 }
 
 sub getInterfaceID
 {
 	my ($name) = @_;
-	$commandId = `snmpwalk -Os -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.2 | grep "ifDescr.*STRING: $name\$"`;
-	chop($commandId);
-	if($commandId eq "")
+
+	$oid = '.1.3.6.1.2.1.2.2.1.2';
+	$idIf = 0;
+	$prevOid = -1;
+
+	while($idIf > $prevOid)
 	{
-		return "error";
+		$SNMPSession->get_next_request($oid);
+		$oid = ($SNMPSession->var_bind_names())[0];
+		$ifName = $SNMPSession->get_request($oid)->{$oid};
+		$prevOid = $idIf;
+		$idIf = substr($oid, rindex($oid, '.') + 1);
+		if($idIf < $prevOid)
+		{
+			return 'error';
+		}
+		if($ifName eq $name)
+		{
+			return $idIf;
+		}
 	}
-	$commandId = substr($commandId, 8);
-	$length = index($commandId, "=") - 1;
-	$return = substr($commandId, 0, $length);
-	return $return;
+	return 'error';
 }
 sub getTotalBytes
 {
@@ -42,9 +71,9 @@ sub getTotalBytes
 	{
 		$sensID = 10;
 	}
-	my $out = ".1.3.6.1.2.1.2.2.1.$sensID.$IDInterface";
-	$hash = $SNMPSession->get_request($out);
-	return $hash->{$out};
+	my $oid = ".1.3.6.1.2.1.2.2.1.$sensID.$IDInterface";
+	$hash = $SNMPSession->get_request($oid);
+	return $hash->{$oid};
 }
 
 sub getFormattedData
