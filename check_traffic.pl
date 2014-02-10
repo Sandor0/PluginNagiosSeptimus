@@ -34,6 +34,24 @@ sub getInterfacesName
 	return $return;
 }
 
+sub getInterfacesIDs
+{
+	my (@names) = @_;
+	foreach my $value (@names)
+	{
+		$currentID = getInterfaceID($value);
+		if($currentID eq 'error')
+		{
+			return 'error';
+		}
+		else
+		{
+			push(@return, $currentID);
+		}
+	}
+	return @return;
+}
+
 sub getInterfaceID
 {
 	my ($name) = @_;
@@ -139,8 +157,8 @@ my $plugin = Nagios::Plugin->new(
 		license   => $LICENCE,
 		);
 
-$defaultWarn = 100000;
-$defaultCrit = 500000;
+$defaultWarn = 100000; # 100 Ko/s
+$defaultCrit = 500000; # 500 Ko/s
 
 $plugin->add_arg(
 		spec     => 'host|H=s',
@@ -153,8 +171,8 @@ $plugin->add_arg(
 		required => 1,
 		);
 $plugin->add_arg(
-		spec     => 'interface|i=s',
-		help     => '--interface=name (eg. Ethernet1/0/11)',
+		spec     => 'interfaces|i=s',
+		help     => '--interfaces=name1;name2;nameX (eg. "Ethernet1/0/1;Ethernet1/0/2;Ethernet1/0/5" or Ethernet1/0/11)',
 		default	 => 'default',
 		);
 $plugin->add_arg(
@@ -194,28 +212,29 @@ $interfaceName = $options->get('interface');
 $warningThresold = $options->get('warning');
 $criticalThresold = $options->get('critical');
 $viewInterface = $options->get('view-interface');
-$interfaceID = getInterfaceID($interfaceName);
+@interfacesNames = split(',', $options->get('interfaces'));
 
-if($viewInterface eq 'all' || $interfaceID eq "error")
+if($interfacesNames[0] ne "default")
+{
+	@interfacesIDs = getInterfacesIDs(@interfacesNames);
+}
+else
+{
+	$badName = 1;	
+}
+
+
+if($viewInterface eq 'all' || $badName == 1 || $interfacesNames == 'error')
 {
 	print getInterfacesName();
 	exit $plugin->nagios_exit(UNKNOWN, "Lists interfaces.");
 }
 
-$totalBytesIN = getTotalBytes($interfaceID, $community, 1);
-$totalBytesOUT = getTotalBytes($interfaceID, $community, 0);
 $dir = "/var/log/centreon/traffic/";
-$filename = "$ip.$interfaceID.$interfaceName.lastdata";
-$filename =~ s/\//-/g;
-$path = $dir . $filename;
-
-# print $path;
 if(!(-d $dir))
 {
 	`mkdir $dir`;
 }
-
-
 if($warningThresold == 0)
 {
 	$warningThresold = $defaultWarn;
@@ -225,63 +244,114 @@ if($criticalThresold == 0)
 	$criticalThresold = $defaultCrit;
 }
 
-$toNextCheck = 0;
-if(-e $path)
+$maxIN = 0;
+$maxOUT = 0;
+$totalIN = 0;
+$totalOUT = 0;
+$averageIN = 0;
+$averageOUT = 0;
+$dividerAverage = 0;
+
+for($i = 0; $i < $#interfacesIDs + 1; $i++)
 {
-	open(FILE, "<$path");
-	$lastdataIN = <FILE>;
-	$lastdataOUT = <FILE>;
-	$lasttime = <FILE>;
-	close(FILE);
-	my $diffIN = abs($totalBytesIN - $lastdataIN);
-	my $diffOUT = abs($totalBytesOUT - $lastdataOUT);
-	my $speedIN = $diffIN / (time - $lasttime);
-	my $speedOUT = $diffOUT / (time - $lasttime);
-	$bandwidthIN = $speedIN * 1; # * x seconds
-		$bandwidthOUT = $speedOUT * 1; # * x seconds
+	$interfaceName = $interfacesNames[$i];
+	$interfaceID = $interfacesIDs[$i];
+
+	$totalBytesIN = getTotalBytes($interfaceID, $community, 1);
+	$totalBytesOUT = getTotalBytes($interfaceID, $community, 0);
+	$filename = "$ip.$interfaceID.$interfaceName.lastdata";
+	$filename =~ s/\//-/g;
+	$path = $dir . $filename;
+
+	$toNextCheck = 0;
+	if(-e $path)
+	{
+		open(FILE, "<$path");
+		$lastdataIN = <FILE>;
+		$lastdataOUT = <FILE>;
+		$lasttime = <FILE>;
+		close(FILE);
+		my $diffIN = abs($totalBytesIN - $lastdataIN);
+		my $diffOUT = abs($totalBytesOUT - $lastdataOUT);
+		my $speedIN = $diffIN / (time - $lasttime);
+		my $speedOUT = $diffOUT / (time - $lasttime);
+		$bandwidthIN = $speedIN * 1; # * x seconds
+			$bandwidthOUT = $speedOUT * 1; # * x seconds
+
+			$totalIN += $speedIN;
+		$totalOUT += $speedOUT;
+		$dividerAverage++;
+		if($speedIN > $maxIN)
+		{
+			$maxIN = $speedIN;
+		}
+		if($speedOUT > $maxOUT)
+		{
+			$maxOUT = $speedOUT;
+		}
+
+
 		$statusinfos = "";
-	if($speedIN == 0 && $speedOUT == 0)
-	{
-		$status = "UNKNOWN";
-		$statusinfos = "(Port maybe not connected)";
-	}
-	elsif($speedIN > $criticalThresold || $speedOUT > $criticalThresold)
-	{
-		$status = "CRITICAL";
-		$statusinfos = "(>$criticalThresold)";
-	}
-	elsif($speedIN > $warningThresold || $speedOUT > $warningThresold)
-	{
-		$status = "WARNING";
-		$statusinfos = "(>$warningThresold)";
+		if($speedIN == 0 && $speedOUT == 0)
+		{
+			$status = "UNKNOWN";
+			$statusinfos = "(Port maybe not connected)";
+		}
+		elsif($speedIN > $criticalThresold || $speedOUT > $criticalThresold)
+		{
+			$status = "CRITICAL";
+			$statusinfos = "(>$criticalThresold)";
+		}
+		elsif($speedIN > $warningThresold || $speedOUT > $warningThresold)
+		{
+			$status = "WARNING";
+			$statusinfos = "(>$warningThresold)";
+		}
+		else
+		{
+			$status = "OK";
+		}
+		writeFile();
 	}
 	else
 	{
-		$status = "OK";
+		$bandwidthIN = "Disponible au prochain check.";
+		$toNextCheck = 1;
+		$bandwidthOUT = $bandwidthIN;
+		$status = "UNKNOWN";
+		$statusinfos = "";
+		writeFile();
 	}
-	writeFile();
+}
+
+if($#interfacesIDs + 1 == 1)
+{
+	print "Bande passante $status $statusinfos: IN:";
+	print getFormattedData($bandwidthIN);
+	print "/s ; OUT:";
+	print getFormattedData($bandwidthOUT);
+	print "/s - $interfaceName in/out: " . getFormattedData($totalBytesIN) . "/" . getFormattedData($bandwidthOUT);
+	if($toNextCheck == 0)
+	{
+		print "|";
+		print "bandwidthIN=$bandwidthIN" . "octets/s; ";
+		print "bandwidthOUT=$bandwidthOUT" . "octets/s;\n";
+	}
 }
 else
 {
-	$bandwidthIN = "Disponible au prochain check.";
-	$toNextCheck = 1;
-	$bandwidthOUT = $bandwidthIN;
-	$status = "UNKNOWN";
-	$statusinfos = "";
-	writeFile();
-}
-print "Bande passante $status $statusinfos: IN:";
-print getFormattedData($bandwidthIN);
-print "/s ; OUT:";
-print getFormattedData($bandwidthOUT);
-print "/s - $interfaceName in/out: " . getFormattedData($totalBytesIN) . "/" . getFormattedData($bandwidthOUT);
-
-if($toNextCheck == 0)
-{
+	$averageIN = $totalIN / $dividerAverage;
+	$averageOUT = $totalOUT / $dividerAverage;
+	print "Max entrant/sortant : " . getFormattedData($maxIN) . "/" . getFormattedData($maxOUT) . " ; ";
+	print "Total entrant/sortant : " . getFormattedData($totalIN) . "/" . getFormattedData($totalOUT) . " ; ";
+	print "Moyenne entrant/sortant : " . getFormattedData($averageIN) . "/" . getFormattedData($averageOUT) . ".";
 	print "|";
-
-	print "bandwidthIN=$bandwidthIN" . "octets/s; ";
-	print "bandwidthOUT=$bandwidthOUT" . "octets/s;\n";
+	print "maxIN=$maxIN" . "octets/s; ";
+	print "maxOUT=$maxOUT" . "octets/s; ";
+	print "averageIN=$averageIN" . "octets/s; ";
+	print "averageOUT=$averageOUT" . "octets/s; ";
+	print "\n";
+	exit $plugin->nagios_exit(OK, "Bandwidth OK" );
 }
 
 if($status eq "OK")
