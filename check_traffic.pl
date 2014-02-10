@@ -9,21 +9,6 @@ use Math::Round;
 use Nagios::Plugin;
 use Net::SNMP;
 
-sub createSNMPSession
-{
-	($SNMPSession, $error) = Net::SNMP->session(
-		-hostname 	=> $ip,
-		-community 	=> $community,
-		-version	=> 1,
-		-timeout	=> 5
-		);
-	if(!defined($SNMPSession))
-	{
-		print $error;
-		exit -1;
-	}
-}
-	
 
 sub getInterfacesName
 {
@@ -57,21 +42,9 @@ sub getTotalBytes
 	{
 		$sensID = 10;
 	}
-#        my $result = `snmpget -Ov -c $community -v 1 $ip .1.3.6.1.2.1.2.2.1.$sensID.$IDInterface`;
-	%hash = $SNMPSession->get_request(".1.3.6.1.2.1.2.2.1.$sensID.$IDInterface");
-
-	$nb = keys(%hash);
-	@cles = keys(%hash);
-	print "Nombre d'elements : $nb\n";
-	print "Cles : @cles\n\n";
-	foreach $i (@cles) 
-	{
-		print "hash($i) = $hash{$i}\n";
-	}
-	exit -1;
-	$result = substr($result, 11);
-	chop($result);
-	return $result;
+	my $out = ".1.3.6.1.2.1.2.2.1.$sensID.$IDInterface";
+	$hash = $SNMPSession->get_request($out);
+	return $hash->{$out};
 }
 
 sub getFormattedData
@@ -176,7 +149,18 @@ my $options = $plugin->opts();
 
 $ip = $options->get('host');
 $community = $options->get('community');
-createSNMPSession();
+($SNMPSession, $error) = Net::SNMP->session(
+		-hostname 	=> $ip,
+		-community 	=> $community,
+		-version	=> 1,
+		-timeout	=> 5
+		);
+if(!defined($SNMPSession))
+{
+	print $error;
+	exit -1;
+}
+	
 $interfaceName = $options->get('interface');
 $warningThresold = $options->get('warning');
 $criticalThresold = $options->get('critical');
