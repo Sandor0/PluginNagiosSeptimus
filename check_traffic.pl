@@ -292,6 +292,10 @@ $averageIN = 0;
 $averageOUT = 0;
 $dividerAverage = 0;
 
+$status = '';
+$statusinfo ='';
+$global_crit = 0;
+$global_warn = 0;
 for($i = 0; $i < $#interfacesIDs + 1; $i++)
 {
 	$interfaceName = $interfacesNames[$i];
@@ -331,7 +335,6 @@ for($i = 0; $i < $#interfacesIDs + 1; $i++)
 		}
 
 
-		$statusinfos = "";
 		if($speedIN == 0 && $speedOUT == 0)
 		{
 			$status = "UNKNOWN";
@@ -341,11 +344,13 @@ for($i = 0; $i < $#interfacesIDs + 1; $i++)
 		{
 			$status = "CRITICAL";
 			$statusinfos = "(>$criticalThresold)";
+			$global_crit = 1;
 		}
 		elsif($speedIN > $warningThresold || $speedOUT > $warningThresold)
 		{
 			$status = "WARNING";
 			$statusinfos = "(>$warningThresold)";
+			$global_warn = 1;
 		}
 		else
 		{
@@ -377,6 +382,22 @@ if($#interfacesIDs + 1 == 1)
 		print "bandwidthIN=$bandwidthIN" . "octets/s; ";
 		print "bandwidthOUT=$bandwidthOUT" . "octets/s;\n";
 	}
+	if($status eq "OK")
+	{
+		exit $plugin->nagios_exit(OK, "Bandwidth OK" );
+	}
+	if($status eq "UNKNOWN")
+	{
+		exit $plugin->nagios_exit(UNKNOWN, "Bandwidth UNKNOWN");
+	}
+	if($status eq "WARNING")
+	{
+		exit $plugin->nagios_exit(WARNING, "Bandwidth WARNING");
+	}
+	if($status eq "CRITICAL")
+	{
+		exit $plugin->nagios_exit(CRITICAL, "Bandwidth CRITICAL");
+	}
 }
 else
 {
@@ -391,23 +412,22 @@ else
 	print "averageIN=$averageIN" . "octets/s; ";
 	print "averageOUT=$averageOUT" . "octets/s; ";
 	print "\n";
-	exit $plugin->nagios_exit(OK, "Bandwidth OK" );
+	if($global_crit == 1)
+	{
+		exit $plugin->nagios_exit(CRITICAL, "Bandwidth CRITICAL");
+	}
+	elsif($global_warn == 1)
+	{
+		exit $plugin->nagios_exit(WARNING, "Bandwidth WARNING");
+	}
+	elsif($status eq "UNKNOWN")
+	{
+		exit $plugin->nagios_exit(UNKNOWN, "Bandwidth UNKNOWN");
+	}
+	elsif($status eq "OK")
+	{
+		exit $plugin->nagios_exit(OK, "Bandwidth OK" );
+	}
 }
 
-if($status eq "OK")
-{
-	exit $plugin->nagios_exit(OK, "Bandwidth OK" );
-}
-if($status eq "UNKNOWN")
-{
-	exit $plugin->nagios_exit(UNKNOWN, "Bandwidth UNKNOWN");
-}
-if($status eq "WARNING")
-{
-	exit $plugin->nagios_exit(WARNING, "Bandwidth WARNING");
-}
-if($status eq "CRITICAL")
-{
-	exit $plugin->nagios_exit(CRITICAL, "Bandwidth CRITICAL");
-}
 
