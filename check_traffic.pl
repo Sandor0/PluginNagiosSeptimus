@@ -416,6 +416,10 @@ else
 	{
 		exit $plugin->nagios_exit(CRITICAL, "Bandwidth CRITICAL");
 	}
+	elsif($status eq "OK")
+	{
+		exit $plugin->nagios_exit(OK, "Bandwidth OK" );
+	}
 	elsif($global_warn == 1)
 	{
 		exit $plugin->nagios_exit(WARNING, "Bandwidth WARNING");
@@ -423,10 +427,6 @@ else
 	elsif($status eq "UNKNOWN")
 	{
 		exit $plugin->nagios_exit(UNKNOWN, "Bandwidth UNKNOWN");
-	}
-	elsif($status eq "OK")
-	{
-		exit $plugin->nagios_exit(OK, "Bandwidth OK" );
 	}
 }
 
