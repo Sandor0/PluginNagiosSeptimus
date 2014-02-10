@@ -9,6 +9,46 @@ use Math::Round;
 use Nagios::Plugin;
 use Net::SNMP;
 
+sub in_array
+{
+        my ($arr, $search_for) = @_;
+        foreach my $value (@$arr)
+        {
+                return 1 if $value eq $search_for;
+        }
+        return 0;
+}
+
+sub getParsedData
+{
+        my ($dataToParse) = @_;
+        @array = ('K', 'M', 'G', 'T');
+        if(in_array(\@array, substr($dataToParse,-1)))
+        {
+                my $unit = substr($dataToParse,-1);
+                $parsedData = substr($dataToParse, 0, -1);
+                if(!($parsedData =~ /^\d+\.*\d*$/))
+                {
+                        return 'Plusieurs unités ou unité non reconnue.';
+                }
+                $unit =~ s/K/1000/;             # 1 000 : 1Ko
+                $unit =~ s/M/1000000/;          # 1 000 000 : 1Mo
+                $unit =~ s/G/1000000000/;       # 1 000 000 000 : 1Go
+                $unit =~ s/T/1000000000000/;    # 1 000 000 000 000 : 1To
+                $parsedData *= $unit;
+                return $parsedData;
+        }
+        else
+        {
+                if(!($dataToParse =~ /^\d+\.*\d*$/))
+                {
+                        return 'Unité non reconnue.';
+                }
+                return $dataToParse;
+        }
+        return 'critical error';
+
+}
 
 sub getInterfacesName
 {
@@ -157,8 +197,8 @@ my $plugin = Nagios::Plugin->new(
 		license   => $LICENCE,
 		);
 
-$defaultWarn = 100000; # 100 Ko/s
-$defaultCrit = 500000; # 500 Ko/s
+$defaultWarn = getParsedData('1M'); # 1 Mo/s
+$defaultCrit = getParsedData('5M'); # 5 Mo/s
 
 $plugin->add_arg(
 		spec     => 'host|H=s',
@@ -176,12 +216,12 @@ $plugin->add_arg(
 		default	 => 'default',
 		);
 $plugin->add_arg(
-		spec     => 'warning|w=i',
+		spec     => 'warning|w=s',
 		default  => $defaultWarn,
 		help     => '--warning=X bytes/s',
 		);
 $plugin->add_arg(
-		spec     => 'critical|c=i',
+		spec     => 'critical|c=s',
 		default  => $defaultCrit,
 		help     => '--critical=X bytes/s',
 		);
@@ -207,13 +247,13 @@ if(!defined($SNMPSession))
 	print $error;
 	exit -1;
 }
-	
+
 $interfaceName = $options->get('interface');
-$warningThresold = $options->get('warning');
-$criticalThresold = $options->get('critical');
+$warningThresold = getParsedData($options->get('warning'));
+$criticalThresold = getParsedData($options->get('critical'));
 $viewInterface = $options->get('view-interface');
 @interfacesNames = split(',', $options->get('interfaces'));
-
+$badName = 0;
 if($interfacesNames[0] ne "default")
 {
 	@interfacesIDs = getInterfacesIDs(@interfacesNames);
@@ -224,7 +264,7 @@ else
 }
 
 
-if($viewInterface eq 'all' || $badName == 1 || $interfacesNames == 'error')
+if($viewInterface eq 'all' || $badName == 1)
 {
 	print getInterfacesName();
 	exit $plugin->nagios_exit(UNKNOWN, "Lists interfaces.");
