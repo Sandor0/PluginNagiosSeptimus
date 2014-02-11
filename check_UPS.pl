@@ -3,6 +3,7 @@
 # Auteur : Simon Mignot - simon.mignot.lasalle@gmail.com
 # Date   : 29/01/2014 - 8:11:32
 # But    : Verification de la bande passante du port d'un switch
+# Site   : https://github.com/Sandor0/PluginNagiosSeptimus
 #===============================================================================
 
 use Nagios::Plugin;
@@ -12,6 +13,7 @@ my $LICENCE =
 "#===============================================================================\n" . 
 '# Auteur : Simon Mignot - simon.mignot.lasalle@gmail.com' . "\n" .
 "# But    : Verification de la bande passante du port d'un switch\n" . 
+"# Site   : https://github.com/Sandor0/PluginNagiosSeptimus\n" .
 "# ########\n" .
 "# Ce plugin Nagios est gratuit et libre de droits, et vous pouvez l'utiliser à votre convenance.\n" .
 "# Ce plugin n'est livrée avec ABSOLUMENT AUCUNE GARANTIE.\n" . 

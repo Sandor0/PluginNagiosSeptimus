@@ -3,6 +3,7 @@
 # Auteur : Simon Mignot - simon.mignot.lasalle@gmail.com
 # Date   : 29/01/2014 - 8:11:32
 # But    : Verification de la bande passante du port d'un switch
+# Site	 : https://github.com/Sandor0/PluginNagiosSeptimus
 #===============================================================================
 
 use Math::Round;
@@ -11,42 +12,42 @@ use Net::SNMP;
 
 sub in_array
 {
-        my ($arr, $search_for) = @_;
-        foreach my $value (@$arr)
-        {
-                return 1 if $value eq $search_for;
-        }
-        return 0;
+	my ($arr, $search_for) = @_;
+	foreach my $value (@$arr)
+	{
+		return 1 if $value eq $search_for;
+	}
+	return 0;
 }
 
 sub getParsedData
 {
-        my ($dataToParse) = @_;
-        @array = ('K', 'M', 'G', 'T');
-        if(in_array(\@array, substr($dataToParse,-1)))
-        {
-                my $unit = substr($dataToParse,-1);
-                $parsedData = substr($dataToParse, 0, -1);
-                if(!($parsedData =~ /^\d+\.*\d*$/))
-                {
-                        return 'Plusieurs unités ou unité non reconnue.';
-                }
-                $unit =~ s/K/1000/;             # 1 000 : 1Ko
-                $unit =~ s/M/1000000/;          # 1 000 000 : 1Mo
-                $unit =~ s/G/1000000000/;       # 1 000 000 000 : 1Go
-                $unit =~ s/T/1000000000000/;    # 1 000 000 000 000 : 1To
-                $parsedData *= $unit;
-                return $parsedData;
-        }
-        else
-        {
-                if(!($dataToParse =~ /^\d+\.*\d*$/))
-                {
-                        return 'Unité non reconnue.';
-                }
-                return $dataToParse;
-        }
-        return 'critical error';
+	my ($dataToParse) = @_;
+	@array = ('K', 'M', 'G', 'T');
+	if(in_array(\@array, substr($dataToParse,-1)))
+	{
+		my $unit = substr($dataToParse,-1);
+		$parsedData = substr($dataToParse, 0, -1);
+		if(!($parsedData =~ /^\d+\.*\d*$/))
+		{
+			return 'Plusieurs unités ou unité non reconnue.';
+		}
+		$unit =~ s/K/1000/;             # 1 000 : 1Ko
+		$unit =~ s/M/1000000/;          # 1 000 000 : 1Mo
+		$unit =~ s/G/1000000000/;       # 1 000 000 000 : 1Go
+		$unit =~ s/T/1000000000000/;    # 1 000 000 000 000 : 1To
+		$parsedData *= $unit;
+		return $parsedData;
+	}
+	else
+	{
+		if(!($dataToParse =~ /^\d+\.*\d*$/))
+		{
+			return 'Unité non reconnue.';
+		}
+		return $dataToParse;
+	}
+	return 'critical error';
 
 }
 
@@ -70,7 +71,6 @@ sub getInterfacesName
 		$return .= $ifName;
 		$return .= "\n";
 	}
-
 	return $return;
 }
 
@@ -179,6 +179,7 @@ my $LICENCE =
 "#===============================================================================\n" . 
 '# Auteur : Simon Mignot - simon.mignot.lasalle@gmail.com' . "\n" .
 "# But    : Verification de la bande passante du port d'un switch\n" . 
+"# Site   : https://github.com/Sandor0/PluginNagiosSeptimus\n" .
 "# ########\n" .
 "# Ce plugin Nagios est gratuit et libre de droits, et vous pouvez l'utiliser à votre convenance.\n" .
 "# Ce plugin n'est livrée avec ABSOLUMENT AUCUNE GARANTIE.\n" . 
@@ -293,9 +294,11 @@ $averageOUT = 0;
 $dividerAverage = 0;
 
 $status = '';
-$statusinfo ='';
+$statusinfos = '';
 $global_crit = 0;
 $global_warn = 0;
+$warnInterfaces = '';
+$critInterfaces = '';
 for($i = 0; $i < $#interfacesIDs + 1; $i++)
 {
 	$interfaceName = $interfacesNames[$i];
@@ -320,9 +323,9 @@ for($i = 0; $i < $#interfacesIDs + 1; $i++)
 		my $speedIN = $diffIN / (time - $lasttime);
 		my $speedOUT = $diffOUT / (time - $lasttime);
 		$bandwidthIN = $speedIN * 1; # * x seconds
-			$bandwidthOUT = $speedOUT * 1; # * x seconds
+		$bandwidthOUT = $speedOUT * 1; # * x seconds
 
-			$totalIN += $speedIN;
+		$totalIN += $speedIN;
 		$totalOUT += $speedOUT;
 		$dividerAverage++;
 		if($speedIN > $maxIN)
@@ -345,12 +348,14 @@ for($i = 0; $i < $#interfacesIDs + 1; $i++)
 			$status = "CRITICAL";
 			$statusinfos = "(>$criticalThresold)";
 			$global_crit = 1;
+			$critInterfaces .= "$interfaceName;";
 		}
 		elsif($speedIN > $warningThresold || $speedOUT > $warningThresold)
 		{
 			$status = "WARNING";
 			$statusinfos = "(>$warningThresold)";
 			$global_warn = 1;
+			$warnInterfaces .= "$interfaceName;";
 		}
 		else
 		{
@@ -403,14 +408,32 @@ else
 {
 	$averageIN = $totalIN / $dividerAverage;
 	$averageOUT = $totalOUT / $dividerAverage;
-	print "Max entrant/sortant : " . getFormattedData($maxIN) . "/" . getFormattedData($maxOUT) . " ; ";
-	print "Total entrant/sortant : " . getFormattedData($totalIN) . "/" . getFormattedData($totalOUT) . " ; ";
-	print "Moyenne entrant/sortant : " . getFormattedData($averageIN) . "/" . getFormattedData($averageOUT) . ".";
+	if($global_crit == 1 || $global_warn == 1)
+	{
+		if($global_crit == 1)
+		{
+			print "CRITICAL : $critInterfaces";
+		}
+		if($global_warn == 1)
+		{
+			print "WARNING : $warnInterfaces - MAX IN:" . getFormattedData($maxIN) . "/s - MAX OUT:" . getFormattedData($maxOUT) . "/s";
+		}
+	}
+	else
+	{
+		print "Max entrant/sortant : " . getFormattedData($maxIN) . "/" . getFormattedData($maxOUT) . " ; ";
+		print "Total entrant/sortant : " . getFormattedData($totalIN) . "/" . getFormattedData($totalOUT) . " ; ";
+		print "Moyenne entrant/sortant : " . getFormattedData($averageIN) . "/" . getFormattedData($averageOUT) . ".";
+	}
 	print "|";
 	print "maxIN=$maxIN" . "octets/s; ";
 	print "maxOUT=$maxOUT" . "octets/s; ";
 	print "averageIN=$averageIN" . "octets/s; ";
 	print "averageOUT=$averageOUT" . "octets/s; ";
+	print "WarningIn=$warningThresold" . "; ";
+	print "WarningOut=-$warningThresold" . "; ";
+	print "CriticalIn=$criticalThresold" . "; ";
+	print "CriticalOut=-$criticalThresold" . "; ";
 	print "\n";
 	if($global_crit == 1)
 	{
