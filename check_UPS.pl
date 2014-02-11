@@ -6,8 +6,9 @@
 #===============================================================================
 
 use Nagios::Plugin;
+use Net::SNMP;
 
-my $LICENCE_check_ups = 
+my $LICENCE = 
 "#===============================================================================\n" . 
 '# Auteur : Simon Mignot - simon.mignot.lasalle@gmail.com' . "\n" .
 "# But    : Verification de la bande passante du port d'un switch\n" . 
@@ -17,43 +18,56 @@ my $LICENCE_check_ups =
 "#===============================================================================\n";
 
 
-my $USAGE_check_ups = "Usage : %s [-H <host>] [-C <community>]";
+my $USAGE = "Usage : %s [-H <host>] [-C <community>]";
 
 use vars qw/ $VERSION /;
-$VERSION_check_ups = 'v1.1';
+$VERSION = 'v1.1';
 
-my $plugin_check_ups = Nagios::Plugin->new(
+my $plugin = Nagios::Plugin->new(
 	shortname => "check if UPS is on battery",
-	usage     => $USAGE_check_ups,
-	version   => $VERSION_check_ups,
-	license   => $LICENCE_check_ups,
+	usage     => $USAGE,
+	version   => $VERSION,
+	license   => $LICENCE,
 );
 
-$plugin_check_ups->add_arg(
+$plugin->add_arg(
 	spec     => 'host|H=s',
 	help     => '--host=IP',    # Aide au sujet de cette option
 	required => 1,                  # Argument obligatoire
 );
-$plugin_check_ups->add_arg(
+$plugin->add_arg(
         spec     => 'community|C=s',
         help     => '--community=name',    # Aide au sujet de cette option
         required => 1,                  # Argument obligatoire
 );
 
-$plugin_check_ups->getopts();
-my $options_check_ups = $plugin_check_ups->opts();
-$ip_check_ups = $options_check_ups->get('host');
-$community_check_ups = $options_check_ups->get('community');
+$plugin->getopts();
+my $options = $plugin->opts();
+$ip = $options->get('host');
+$community = $options->get('community');
 
-$result_check_ups = `snmpget -Ov -c $community_check_ups -v 1 $ip_check_ups .1.3.6.1.4.1.705.1.7.3.0`;
-$result_check_ups = substr($result_check_ups, 9);
-if($result_check_ups == 2)
+($SNMPSession, $error) = Net::SNMP->session(
+                -hostname       => $ip,
+                -community      => $community,
+                -version        => 1,
+                -timeout        => 5
+                );
+if(!defined($SNMPSession))
+{
+        print $error;
+        exit -1;
+}
+
+$oid = ".1.3.6.1.4.1.705.1.7.3.0";
+$hash = $SNMPSession->get_request($oid);
+
+if($hash->{$oid} == 2)
 {
 	print "UPS OK.|on_state=1; off_state=0;\n";
-	exit $plugin_check_ups->nagios_exit(OK, "");
+	exit $plugin->nagios_exit(OK, "");
 }
-elsif($result_check_ups == 1)
+elsif($hash->{$oid} == 1)
 {
 	print "UPS CRITICAL : On battery.|off_state=1; on_state=0;\n";
-	exit $plugin_check_ups->nagios_exit(CRITICAL, "");
+	exit $plugin->nagios_exit(CRITICAL, "");
 }
