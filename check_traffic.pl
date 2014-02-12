@@ -3,7 +3,7 @@
 # Auteur : Simon Mignot - simon.mignot.lasalle@gmail.com
 # Date   : 29/01/2014 - 8:11:32
 # But    : Verification de la bande passante du port d'un switch
-# Site	 : https://github.com/Sandor0/PluginNagiosSeptimus
+# Site   : https://github.com/Sandor0/PluginNagiosSeptimus
 #===============================================================================
 
 use Math::Round;
@@ -178,8 +178,8 @@ sub writeFile
 my $LICENCE = 
 "#===============================================================================\n" . 
 '# Auteur : Simon Mignot - simon.mignot.lasalle@gmail.com' . "\n" .
-"# But    : Verification de la bande passante du port d'un switch\n" . 
-"# Site   : https://github.com/Sandor0/PluginNagiosSeptimus\n" .
+"# But    : Verification de la bande passante du port d'un switch\n" .
+"# Site   : https://github.com/Sandor0/PluginNagiosSeptimus\n" . 
 "# ########\n" .
 "# Ce plugin Nagios est gratuit et libre de droits, et vous pouvez l'utiliser à votre convenance.\n" .
 "# Ce plugin n'est livrée avec ABSOLUMENT AUCUNE GARANTIE.\n" . 
@@ -297,6 +297,7 @@ $status = '';
 $statusinfos = '';
 $global_crit = 0;
 $global_warn = 0;
+$global_ok   = 0;
 $warnInterfaces = '';
 $critInterfaces = '';
 for($i = 0; $i < $#interfacesIDs + 1; $i++)
@@ -360,6 +361,7 @@ for($i = 0; $i < $#interfacesIDs + 1; $i++)
 		else
 		{
 			$status = "OK";
+			$global_ok = 1;
 		}
 		writeFile();
 	}
@@ -430,16 +432,16 @@ else
 	print "maxOUT=$maxOUT" . "octets/s; ";
 	print "averageIN=$averageIN" . "octets/s; ";
 	print "averageOUT=$averageOUT" . "octets/s; ";
-	print "WarningIn=$warningThresold" . "; ";
-	print "WarningOut=-$warningThresold" . "; ";
-	print "CriticalIn=$criticalThresold" . "; ";
-	print "CriticalOut=-$criticalThresold" . "; ";
+	#print "WarningIn=$warningThresold" . "; ";
+	#print "WarningOut=-$warningThresold" . "; ";
+	#print "CriticalIn=$criticalThresold" . "; ";
+	#print "CriticalOut=-$criticalThresold" . "; ";
 	print "\n";
 	if($global_crit == 1)
 	{
 		exit $plugin->nagios_exit(CRITICAL, "Bandwidth CRITICAL");
 	}
-	elsif($status eq "OK")
+	elsif($global_ok == 1)
 	{
 		exit $plugin->nagios_exit(OK, "Bandwidth OK" );
 	}
